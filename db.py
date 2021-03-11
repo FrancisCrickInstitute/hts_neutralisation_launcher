@@ -7,30 +7,51 @@ class Database:
     def __init__(self, path):
         self.path = path
 
-    def create(self):
+    def create(self, force=False):
         """
         create processed experiments database if it doesn't
         already exist
         """
         conn = sqlite3.connect(self.path)
         cursor = conn.cursor()
-        cursor.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS processed
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                experiment CHAR(10) NOT NULL,
-                variant CHAR(10) NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS stitched
-            (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                plate_name CHAR(20) NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-        )
+        if force:
+            # create database, overwrite any existing tables
+            cursor.executescript(
+                """
+                CREATE TABLE processed
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    experiment CHAR(10) NOT NULL,
+                    variant CHAR(10) NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE stitched
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plate_name CHAR(20) NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+        else:
+            # don't overwrite any existing tables
+            cursor.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS processed
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    experiment CHAR(10) NOT NULL,
+                    variant CHAR(10) NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS stitched
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plate_name CHAR(20) NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
         conn.commit()
         cursor.close()
 
