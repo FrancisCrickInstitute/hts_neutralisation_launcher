@@ -33,26 +33,23 @@ class MyEventHandler(LoggingEventHandler):
         #### concentration-response analysis ###
         if self.database.is_experiment_processed(experiment, variant_letter):
             logging.info(
-                f"experiment {experiment} already exists in processed database"
+                f"experiment: {experiment} variant: {variant_letter} has already been analysed"
             )
         else:
-            logging.info(f"new experiment: {experiment}")
-            logging.info("creating plate_list")
+            logging.info(f"new experiment: {experiment} variant: {variant_letter}")
             plate_list_96 = self.create_plate_list_96(experiment)
             plate_list_384 = self.create_plate_list_384(experiment)
             if len(plate_list_96) == 8:
-                logging.info("launching analysis job")
                 task.background_analysis_96.delay(plate_list_96)
-                logging.info("analysis complete, adding to processed database")
+                logging.info("analysis launched, adding to processed database")
                 self.database.add_processed_experiment(experiment, variant_letter)
             else:
                 logging.warning(
                     f"plate list 96 length = {len(plate_list_96)} expected 8"
                 )
             if len(plate_list_384) == 2:
-                logging.info("launching analysis job")
                 task.background_analysis_384.delay(plate_list_384)
-                logging.info("analysis complete, adding to processed database")
+                logging.info("analysis launched, adding to processed database")
                 self.database.add_processed_experiment(experiment, variant_letter)
             else:
                 logging.warning(
@@ -60,14 +57,15 @@ class MyEventHandler(LoggingEventHandler):
                 )
         #### image stitching ####
         if self.is_384_plate(src_path, experiment):
-            logging.info("determined 384 plate, stitching images")
+            logging.info("determined it's a 384 plate, stitching images")
             if self.database.is_plate_stitched(plate_name):
-                logging.info(f"plate {plate_name} already stitched")
+                logging.info(f"plate {plate_name} has already been stitched")
             else:
-                logging.info(f"new plate {plate_name}, stitching images")
+                logging.info(f"new plate {plate_name}")
                 indexfile_path = os.path.join(src_path, "indexfile.txt")
                 task.background_image_stitch_384.delay(indexfile_path)
                 self.database.add_stitched_plate(plate_name)
+                logging.info("stitching launched, adding to stitched database")
         else:
             logging.info("not a 384 plate, skipping stitching")
 
