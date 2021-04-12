@@ -11,6 +11,10 @@ from db import Database
 
 
 class MyEventHandler(LoggingEventHandler):
+    """
+    A watchdog event handler, to launch celery
+    tasks when new exported data is detected
+    """
     def __init__(self, input_dir, db_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.input_dir = input_dir
@@ -23,7 +27,12 @@ class MyEventHandler(LoggingEventHandler):
 
     def on_created(self, event):
         """
-        over-ride method when file or directory is created
+        Override default LoggingEventHandler.on_created method.
+
+        When a directory is created, this method will determine if the
+        directory path looks like it's been exported from the phenix, and
+        if so will pass the directory path to the analysis and image-stitching
+        celery tasks.
         """
         super().on_created(event)
         src_path = event.src_path
@@ -37,6 +46,20 @@ class MyEventHandler(LoggingEventHandler):
         self.handle_stitching(src_path, experiment, plate_name)
 
     def handle_analysis(self, src_path, experiment, variant_letter):
+        """
+        Determine if valid and new exported data, and if so launches
+        a new celery analysis task.
+
+        Parameters:
+        ------------
+        src_path: string
+        experiment: string
+        variant_letter: string
+
+        Returns:
+        --------
+        None
+        """
         if self.database.is_experiment_processed(experiment, variant_letter):
             logging.info(
                 f"experiment: {experiment} variant: {variant_letter} has already been analysed"
@@ -57,8 +80,22 @@ class MyEventHandler(LoggingEventHandler):
             self.database.add_processed_experiment(experiment, variant_letter)
 
     def handle_stitching(self, src_path, experiment, plate_name):
+        """
+        Determine if valid and new exported data, and if so launches
+        a new celery image-stitching task.
+
+        Parameters:
+        ------------
+        src_path: string
+        experiment: string
+        plate_name: string
+
+        Returns:
+        --------
+        None
+        """
         if self.is_384_plate(src_path, experiment):
-            logging.info("determined it's a 384 plate, stitching images")
+            logging.info("determined it's a 384 plate")
             if self.database.is_plate_stitched(plate_name):
                 logging.info(f"plate {plate_name} has already been stitched")
                 return None
@@ -134,10 +171,6 @@ class MyEventHandler(LoggingEventHandler):
         plate_dir = os.path.basename(dir_name)
         return plate_dir.split("__")[0]
 
-    def get_variant_int_from_platen_name(self, plate_name):
-        """docstring"""
-        raise NotImplementedError()
-
     def create_variant_mapping(self):
         """
         Create variant mapping dictionary, to map the paired sequential
@@ -174,7 +207,7 @@ class MyEventHandler(LoggingEventHandler):
         variant_int = int(plate_name[1:3])
         if variant_int > 26:
             raise NotImplementedError(
-                "MyEventHandler.variant_mapping only handles variant numbers "
+                "MyEventHandler's variant mapping only handles variant numbers "
                 + "up to 26. You will need to alter this to use high numbers"
             )
         return self.variant_mapping[variant_int]
