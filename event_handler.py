@@ -33,42 +33,41 @@ class MyEventHandler(LoggingEventHandler):
             return None
         plate_name = self.get_plate_name(src_path)
         variant_letter = self.get_variant_letter(plate_name)
-        #### concentration-response analysis ###
+        self.handle_analysis(src_path, experiment, variant_letter)
+        self.handle_stitching(src_path, experiment, plate_name)
+
+    def handle_analysis(self, src_path, experiment, variant_letter):
         if self.database.is_experiment_processed(experiment, variant_letter):
             logging.info(
                 f"experiment: {experiment} variant: {variant_letter} has already been analysed"
             )
-        else:
-            logging.info(f"new experiment: {experiment} variant: {variant_letter}")
-            plate_list_96 = self.create_plate_list_96(experiment)
-            plate_list_384 = self.create_plate_list_384(experiment, variant_letter)
-            if len(plate_list_96) == 8:
-                task.background_analysis_96.delay(plate_list_96)
-                logging.info("analysis launched, adding to processed database")
-                self.database.add_processed_experiment(experiment, variant_letter)
-            else:
-                logging.warning(
-                    f"plate list 96 length = {len(plate_list_96)} expected 8"
-                )
-            if len(plate_list_384) == 2:
-                task.background_analysis_384.delay(plate_list_384)
-                logging.info("analysis launched, adding to processed database")
-                self.database.add_processed_experiment(experiment, variant_letter)
-            else:
-                logging.warning(
-                    f"plate list 384 length = {len(plate_list_384)} expected 2"
-                )
-        #### image stitching ####
+            return None
+        logging.info(f"new experiment: {experiment} variant: {variant_letter}")
+        plate_list_96 = self.create_plate_list_96(experiment)
+        plate_list_384 = self.create_plate_list_384(experiment, variant_letter)
+        if len(plate_list_96) == 8:
+            task.background_analysis_96.delay(plate_list_96)
+            logging.info("analysis launched, adding to processed database")
+            # TODO: move to end of celery task
+            self.database.add_processed_experiment(experiment, variant_letter)
+        if len(plate_list_384) == 2:
+            task.background_analysis_384.delay(plate_list_384)
+            logging.info("analysis launched, adding to processed database")
+            # TODO: move to end of celery task
+            self.database.add_processed_experiment(experiment, variant_letter)
+
+    def handle_stitching(self, src_path, experiment, plate_name):
         if self.is_384_plate(src_path, experiment):
             logging.info("determined it's a 384 plate, stitching images")
             if self.database.is_plate_stitched(plate_name):
                 logging.info(f"plate {plate_name} has already been stitched")
-            else:
-                logging.info(f"new plate {plate_name}")
-                indexfile_path = os.path.join(src_path, "indexfile.txt")
-                task.background_image_stitch_384.delay(indexfile_path)
-                self.database.add_stitched_plate(plate_name)
-                logging.info("stitching launched, adding to stitched database")
+                return None
+            logging.info(f"new plate {plate_name}")
+            indexfile_path = os.path.join(src_path, "indexfile.txt")
+            task.background_image_stitch_384.delay(indexfile_path)
+            # TODO: move to end of celery task
+            self.database.add_stitched_plate(plate_name)
+            logging.info("stitching launched, adding to stitched database")
         else:
             logging.info("not a 384 plate, skipping stitching")
 
@@ -76,10 +75,7 @@ class MyEventHandler(LoggingEventHandler):
         """determine if it's a 384-well plate"""
         final_path = os.path.basename(dir_name)
         parsed_experiment = final_path.split("__")[0][-6:]
-        if final_path.startswith("S") and parsed_experiment == experiment:
-            return True
-        else:
-            return False
+        return final_path.startswith("S") and parsed_experiment == experiment
 
     def create_plate_list_96(self, experiment):
         """
