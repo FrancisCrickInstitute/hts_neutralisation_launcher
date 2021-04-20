@@ -107,6 +107,7 @@ class MyEventHandler(LoggingEventHandler):
         final_path = os.path.basename(dir_name)
         parsed_experiment = final_path.split("__")[0][-6:]
         return final_path.startswith("S") and parsed_experiment == experiment
+      
 
     def create_plate_list_384(self, experiment, variant_letter):
         """
