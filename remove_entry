@@ -2,7 +2,6 @@
 
 import argparse
 import sqlalchemy
-import sqlite3
 
 
 def parse_workflow_ids(workflow_ids):
