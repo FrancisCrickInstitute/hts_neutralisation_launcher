@@ -23,7 +23,7 @@ celery = Celery(
 def background_analysis_384(plate_list):
     """check for new experiment directory"""
     time.sleep(10)
-    plaque_assay.main.run(plate_list, plate=384)
+    plaque_assay.main.run(plate_list)
 
 
 @celery.task(
