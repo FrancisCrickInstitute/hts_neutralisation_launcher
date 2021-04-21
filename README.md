@@ -48,7 +48,7 @@ into the LIMS. To re-analyse anything (in case of an error before LIMS upload) y
 ### CLI tool
 This will remove workflow ID 101 from the `processed` table (all variants).
 ```bash
-./remove_entry 101
+./remove_processed 101
 ```
 
 To specify the variant:
@@ -61,7 +61,7 @@ To specify the variant:
 
 To remove stitched entries (all variants):
 ```bash
-./remove stitched 101
+./remove_stitched 101
 ```
 
 
