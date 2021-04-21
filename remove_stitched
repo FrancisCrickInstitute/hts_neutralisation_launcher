@@ -1,5 +1,6 @@
 #!/bin/env python
 
+
 import argparse
 import sqlalchemy
 
@@ -21,19 +22,24 @@ def create_connection():
     return con
 
 
-def remove_processed(workflow_ids):
-    """docstring"""
+def remove_stitched(workflow_id):
+    """
+    Given a single workflow_id as a string e.g "000001", this will
+    remove all entries from the `stitched` table where `plate_name`
+    endswith `workflow_id`.
+    """
+    assert isinstance(workflow_id, str)
     con = create_connection()
+    workflow_endswith = f"%{workflow_id}"
     con.execute(
-        "DELETE FROM processed WHERE experiment IN (%s)" %
-        ",".join("?" * len(workflow_ids)),
-        workflow_ids
+        "DELETE FROM stitched WHERE plate_name LIKE ?",
+        (workflow_endswith, )
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Remove entries from sqlite database"
+        description="Remove stitched entries from sqlite database"
     )
     parser.add_argument(
         "workflow_ids",
@@ -42,15 +48,9 @@ if __name__ == "__main__":
         nargs="+",
         help="workflow IDs to remove"
     )
-    parser.add_argument(
-        "-v",
-        "--variant",
-        nargs="*",
-        default=["a", "b", "c"],
-        help="variants to remove"
-    )
     args = parser.parse_args()
 
     workflow_ids = parse_workflow_ids(args.workflow_ids)
-    print(f"--- Removing: {workflow_ids} variants: {args.variant} from: processed ---")
-    remove_processed(workflow_ids)
+    print(f"--- Removing: {workflow_ids} from: stitched ---")
+    for workflow_id in workflow_ids:
+        remove_stitched(workflow_id)

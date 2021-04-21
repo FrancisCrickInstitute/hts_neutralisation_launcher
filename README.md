@@ -53,18 +53,24 @@ This will remove workflow ID 101 from the `processed` table (all variants).
 
 To specify the variant:
 ```bash
-./remove_entry 101 --variant a
+./remove_processed 101 --variant a
 ```
 ```bash
-./remove_entry 101 -v a b
+./remove_processed 101 -v a b
+```
+
+To remove stitched entries (all variants):
+```bash
+./remove stitched 101
 ```
 
 
 ### Manually
 
-e.g if you want to delete the experiment "000EXAMPLE"
+e.g if you want to delete the workflow_id "000101"
 ```
 sqlite3 processed_experiments.sqlite
 
-sqlite> DELETE FROM processed WHERE experiment="000EXAMPLE"
+sqlite> DELETE FROM processed WHERE experiment="000101";
+sqlite> DELETE FROM stitched WHERE plate_name LIKE "%000101";
 ```
