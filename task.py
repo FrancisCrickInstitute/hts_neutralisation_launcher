@@ -1,6 +1,7 @@
 import os
 import time
 from urllib.error import URLError, HTTPError
+import sqlalchemy.exc
 import textwrap
 
 import celery
@@ -63,7 +64,9 @@ class BaseTask(celery.Task):
 @celery.task(
     queue="analysis",
     base=BaseTask,
-    autoretry_for=(ConnectionResetError, FileNotFoundError, BlockingIOError)
+    autoretry_for=(
+        ConnectionResetError, FileNotFoundError, BlockingIOError, sqlalchemy.exc.OperationalError
+    )
 )
 def background_analysis_384(plate_list):
     """check for new experiment directory"""
