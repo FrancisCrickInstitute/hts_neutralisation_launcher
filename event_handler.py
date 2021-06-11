@@ -7,7 +7,6 @@ from collections import defaultdict
 from watchdog.events import LoggingEventHandler
 
 import task
-from db import Database
 from variant_mapper import VariantMapper
 
 
@@ -16,11 +15,11 @@ class MyEventHandler(LoggingEventHandler):
     A watchdog event handler, to launch celery
     tasks when new exported data is detected
     """
+
     def __init__(self, input_dir, db_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.input_dir = input_dir
         self.db_path = db_path
-        self.database = Database(db_path)
         self.database.create()
         self.variant_mapper = VariantMapper()
 
@@ -67,9 +66,7 @@ class MyEventHandler(LoggingEventHandler):
         plate_list_384 = self.create_plate_list_384(experiment, variant_letter)
         if len(plate_list_384) == 2:
             task.background_analysis_384.delay(plate_list_384)
-            logging.info("analysis launched, adding to processed database")
-            # TODO: move to end of celery task
-            self.database.add_processed_experiment(experiment, variant_letter)
+            logging.info("analysis launched")
 
     def handle_stitching(self, src_path, experiment, plate_name):
         """
@@ -94,9 +91,7 @@ class MyEventHandler(LoggingEventHandler):
             logging.info(f"new plate {plate_name}")
             indexfile_path = os.path.join(src_path, "indexfile.txt")
             task.background_image_stitch_384.delay(indexfile_path)
-            # TODO: move to end of celery task
-            self.database.add_stitched_plate(plate_name)
-            logging.info("stitching launched, adding to stitched database")
+            logging.info("stitching launched")
         else:
             logging.info("not a 384 plate, skipping stitching")
 

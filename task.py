@@ -19,12 +19,11 @@ DB_PATH = "/home/warchas/plaque_assay_dev/hts_neutralisation_launcher/processed_
 celery = celery.Celery(
     "task",
     backend=f"redis://localhost:{REDIS_PORT}/0",
-    broker=f"redis://localhost:{REDIS_PORT}/0"
+    broker=f"redis://localhost:{REDIS_PORT}/0",
 )
 
 
 class BaseTask(celery.Task):
-
     def on_success(self, retval, task_id, args, kwargs):
         """
         update sqlite database to record already-run
@@ -111,8 +110,11 @@ class BaseTask(celery.Task):
     queue="analysis",
     base=BaseTask,
     autoretry_for=(
-        ConnectionResetError, FileNotFoundError, BlockingIOError, sqlalchemy.exc.OperationalError
-    )
+        ConnectionResetError,
+        FileNotFoundError,
+        BlockingIOError,
+        sqlalchemy.exc.OperationalError,
+    ),
 )
 def background_analysis_384(plate_list):
     """check for new experiment directory"""
@@ -124,8 +126,12 @@ def background_analysis_384(plate_list):
     queue="image_stitch",
     base=BaseTask,
     autoretry_for=(
-        ConnectionResetError, FileNotFoundError, URLError, HTTPError, BlockingIOError
-    )
+        ConnectionResetError,
+        FileNotFoundError,
+        URLError,
+        HTTPError,
+        BlockingIOError,
+    ),
 )
 def background_image_stitch_384(indexfile_path):
     """image stitching for 384 well plate"""

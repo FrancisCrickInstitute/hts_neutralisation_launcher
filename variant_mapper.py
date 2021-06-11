@@ -13,7 +13,7 @@ class VariantMapper:
     two replicates associated with the same variant. i.e [01, 02] are
     associated with variant "a", [03, 04] for variant "b" etc.
     The two-digits are the 2nd and 3rd character in the plate barcode.
-    e.g "S0399" has the variant integer 03.
+    e.g "S03000001" has the variant integer 03.
 
     The neutralisation launcher records variants in the form of a single
     lower case letter. These letters are simply in alphabetical order
@@ -53,6 +53,7 @@ class VariantMapper:
                 ...
                 26: z
             }
+
         NOTE that at the moment this only goes up to z, so 26 different
         variants, although it can possibly reach 49. We will need to figure
         out how to handle 27+ if we ever reach that far (hopefully not).

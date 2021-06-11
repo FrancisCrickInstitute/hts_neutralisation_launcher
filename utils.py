@@ -34,6 +34,7 @@ def get_dilution_from_row_col(row, col):
         raise RuntimeError()
     return dilution
 
+
 def send_slack_alert(exc, task_id, args, kwargs, einfo):
     """send slack message on failure"""
     data = {
@@ -41,7 +42,8 @@ def send_slack_alert(exc, task_id, args, kwargs, einfo):
         "username": "NE analysis",
         "attachments": [
             {
-                "text": textwrap.dedent(f"""
+                "text": textwrap.dedent(
+                    f"""
                     :fire: OH NO! :fire:
                     **NE pipeline**
                     #####################################
@@ -53,11 +55,12 @@ def send_slack_alert(exc, task_id, args, kwargs, einfo):
                     #####################################
                     {exc!r}
                     #####################################
-                """),
+                """
+                ),
                 "color": "#ad1720",
                 "attachment_type": "default",
             }
-        ]
+        ],
     }
     r = requests.post(SLACK_WEBHOOK_URL, json=data)
     return r.status_code
