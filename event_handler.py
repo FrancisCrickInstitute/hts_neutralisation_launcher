@@ -8,6 +8,7 @@ from watchdog.events import LoggingEventHandler
 
 import task
 from db import Database
+from variant_mapper import VariantMapper
 
 
 class MyEventHandler(LoggingEventHandler):
@@ -21,9 +22,7 @@ class MyEventHandler(LoggingEventHandler):
         self.db_path = db_path
         self.database = Database(db_path)
         self.database.create()
-        variant_map = self.create_variant_mapping()
-        self.variant_mapping = variant_map
-        self.variant_mapping_rev = self.reverse_variant_mapping(variant_map)
+        self.variant_mapper = VariantMapper()
 
     def on_created(self, event):
         """
@@ -41,7 +40,7 @@ class MyEventHandler(LoggingEventHandler):
             # invalid experiment name, skip
             return None
         plate_name = self.get_plate_name(src_path)
-        variant_letter = self.get_variant_letter(plate_name)
+        variant_letter = self.variant_mapper.get_variant_letter(plate_name)
         self.handle_analysis(experiment, variant_letter)
         self.handle_stitching(src_path, experiment, plate_name)
 
@@ -107,7 +106,6 @@ class MyEventHandler(LoggingEventHandler):
         final_path = os.path.basename(dir_name)
         parsed_experiment = final_path.split("__")[0][-6:]
         return final_path.startswith("S") and parsed_experiment == experiment
-      
 
     def create_plate_list_384(self, experiment, variant_letter):
         """
@@ -116,7 +114,7 @@ class MyEventHandler(LoggingEventHandler):
         all_subdirs = [i for i in os.listdir(self.input_dir)]
         full_paths = [os.path.join(self.input_dir, i) for i in all_subdirs]
         # filter to just those of the specific experiment and variants
-        variant_ints = self.get_variant_ints_from_letter(variant_letter)
+        variant_ints = self.variant_mapper.get_variant_ints_from_letter(variant_letter)
         wanted_experiment = []
         for i in full_paths:
             final_path = os.path.basename(i)
@@ -148,54 +146,3 @@ class MyEventHandler(LoggingEventHandler):
         """get the name of the plate from the full directory path"""
         plate_dir = os.path.basename(dir_name)
         return plate_dir.split("__")[0]
-
-    @staticmethod
-    def create_variant_mapping():
-        """
-        Create variant mapping dictionary, to map the paired sequential
-        numbers to a variant letter.
-
-        e.g:
-            1, 2 => "a"
-            3, 4 => "b"
-
-        """
-        # NOTE that at the moment this only goes up to z, so 26 different
-        # variants, although it can possibly reach 49. We will need to figure
-        # out how to handle 27+ if we ever reach that far.
-        variant_dict = dict()
-        for i in range(1, 27):
-            letter_int = math.ceil(i / 2) - 1
-            variant_dict[i] = string.ascii_lowercase[letter_int]
-        return variant_dict
-
-    @staticmethod
-    def reverse_variant_mapping(variant_map):
-        """
-        reverse the variant map so we have the possible integers for a given
-        variant letter
-        e.g:
-            {1: "a", 2: "a", 3: "b", 4: "b} => {"a": [1, 2], "b": [3, 4]}
-        """
-        variant_map_rev = defaultdict(list)
-        for integer, letter in variant_map.items():
-            variant_map_rev[letter].append(integer)
-        return variant_map_rev
-
-    def get_variant_letter(self, plate_name):
-        """get variant letter from plate name"""
-        variant_int = int(plate_name[1:3])
-        if variant_int > 26:
-            raise NotImplementedError(
-                "MyEventHandler's variant mapping only handles variant numbers "
-                + "up to 26. You will need to alter this to use high numbers"
-            )
-        return self.variant_mapping[variant_int]
-
-    def get_variant_ints_from_letter(self, letter):
-        """
-        e.g:
-        "a" => [1, 2]
-        ...
-        """
-        return self.variant_mapping_rev[letter]

@@ -1,18 +1,19 @@
 import os
 import time
 from urllib.error import URLError, HTTPError
+
 import sqlalchemy.exc
-import textwrap
-
 import celery
-import requests
 
+import db
 import plaque_assay
 import stitch_images
+import utils
+from variant_mapper import VariantMapper
 
 
 REDIS_PORT = 7777
-SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_NEUTRALISATION")
+DB_PATH = "/home/warchas/plaque_assay_dev/hts_neutralisation_launcher/processed_experiments.sqlite"
 
 
 celery = celery.Celery(
@@ -24,41 +25,86 @@ celery = celery.Celery(
 
 class BaseTask(celery.Task):
 
-    @staticmethod
-    def slack_alert(exc, task_id, args, kwargs, einfo):
-        """send slack message on failure"""
-        data = {
-            "text": "Something broke",
-            "username": "NE analysis",
-            "attachments": [
-                {
-                    "text": textwrap.dedent(f"""
-                        :fire: OH NO! :fire:
-                        **NE pipeline**
-                        #####################################
-                        {task_id!r} failed
-                        #####################################
-                        args: {args!r}
-                        #####################################
-                        {einfo!r}
-                        #####################################
-                        {exc!r}
-                        #####################################
-                    """),
-                    "color": "#ad1721",
-                    "attachment_type": "default",
-                }
-            ]
-        }
-        r = requests.post(SLACK_WEBHOOK_URL, json=data)
-        return r.status_code
+    def on_success(self, retval, task_id, args, kwargs):
+        """
+        update sqlite database to record already-run
+        analysis and image-stitching.
+        """
+        database = db.Database(path=DB_PATH)
+        # args is always a tuple
+        # for stitching tasks it's a tuple of 1 string
+        #     e.g   ("/camp/ABNEUTRALISATION..../indexfile.txt", )
+        # for analysis tasks it's a tuple of 1 list containing 2 strings
+        #    e.g (["/camp/.../", "/camp/.../"], )
+        assert len(args) == 1
+        if isinstance(args[0], str):
+            task_type = "stitching"
+        elif isinstance(args[0], list) and len(args[0]) == 2:
+            task_type = "analysis"
+        else:
+            raise RuntimeError(f"invalid args: {args}")
+        if task_type == "analysis":
+            workflow_id = self.get_workflow(args)
+            variant = self.get_variant(args)
+            database.add_processed_experiment(workflow_id, variant)
+        if task_type == "stitching":
+            plate_name = self.get_plate_name(args)
+            database.add_stitched_plate(plate_name)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        """custom actions on task failure"""
+        """send slack alert on task failure"""
         print("sending slack alert")
-        status_code = self.slack_alert(exc, task_id, args, kwargs, einfo)
+        status_code = utils.send_slack_alert(exc, task_id, args, kwargs, einfo)
         if status_code != 200:
             print(f"{status_code}: failed to send slack alert")
+
+    @staticmethod
+    def get_plate_name(args):
+        """
+        get plate name from image_stitch args
+
+        Arguments:
+        -----------
+        args: tuple of 1 string
+            e.g ('/.../S06000114__2021-05-14T13_44_30-Measurement 1/indexfile.txt',)
+
+        Returns:
+        ---------
+        string e.g "S06000114"
+        """
+        path = args[0]
+        plate_dir = path.split(os.sep)[-2]
+        plate_name = plate_dir.split("__")[0]
+        return plate_name
+
+    @staticmethod
+    def get_workflow(args):
+        """get workflow from args"""
+        paths = args[0]
+        assert len(paths) == 2
+        # both workflows in args are the same
+        workflow_set = set()
+        for path in paths:
+            workflow = os.path.basename(path).split("__")[0][6:]
+            workflow_set.add(workflow)
+        assert len(workflow_set) == 1, "multiple workflows detected"
+        workflow_single = list(workflow_set)[0]
+        return workflow_single
+
+    @staticmethod
+    def get_variant(args):
+        """get variant letter short-code from args"""
+        paths = args[0]
+        assert len(paths) == 2
+        variant_mapper = VariantMapper()
+        variant_letters = set()
+        for path in paths:
+            plate_name = os.path.basename(path).split("__")[0]
+            letter = variant_mapper.get_variant_letter(plate_name)
+            variant_letters.add(letter)
+        assert len(variant_letters) == 1, "multiple variants detected"
+        variant_letter = list(variant_letters)[0]
+        return variant_letter
 
 
 @celery.task(
