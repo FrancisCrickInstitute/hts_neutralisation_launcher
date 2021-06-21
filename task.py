@@ -24,6 +24,7 @@ celery = celery.Celery(
 
 
 class BaseTask(celery.Task):
+  
     def on_success(self, retval, task_id, args, kwargs):
         """
         update sqlite database to record already-run
