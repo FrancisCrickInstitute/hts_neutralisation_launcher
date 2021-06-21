@@ -8,6 +8,7 @@ from watchdog.events import LoggingEventHandler
 
 import task
 from variant_mapper import VariantMapper
+from db import Database
 
 
 class MyEventHandler(LoggingEventHandler):
@@ -20,6 +21,7 @@ class MyEventHandler(LoggingEventHandler):
         super().__init__(*args, **kwargs)
         self.input_dir = input_dir
         self.db_path = db_path
+        self.database = Database(db_path)
         self.database.create()
         self.variant_mapper = VariantMapper()
 
