@@ -62,7 +62,10 @@ class ImageStitcher:
         plate_images = dict()
         for channel_name, group in self.indexfile.groupby("Channel ID"):
             for index, row in group.iterrows():
-                url = row["URL"].replace(HARMONY_NAME, HARMONY_IP_ADDRESS)
+                # vm doesn't find harmony computer by name, replace with ip
+                # address in URLs
+                url = row["URL"]
+                url = url.replace(HARMONY_NAME, HARMONY_IP_ADDRESS)
                 img = skimage.io.imread(url, as_gray=True)
                 # TODO add logging
                 img = skimage.transform.resize(
@@ -109,7 +112,10 @@ class ImageStitcher:
                     dilution = utils.get_dilution_from_row_col(
                         group_row["Row"], group_row["Column"]
                     )
-                    url = group_row["URL"].replace(HARMONY_NAME, HARMONY_IP_ADDRESS)
+                    # vm doesn't find harmony computer by name, replace with ip
+                    # address in URLs
+                    url = group_row["URL"]
+                    url = url.replace(HARMONY_NAME, HARMONY_IP_ADDRESS)
                     img = skimage.io.imread(url, as_gray=True)
                     sample_dict[channel_name].update({dilution: img})
         for channel in [1, 2]:

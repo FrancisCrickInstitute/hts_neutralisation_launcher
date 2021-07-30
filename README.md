@@ -19,7 +19,7 @@ This requires an installation of redis-server, celery and a MySQL driver.
 
 
 ## To run:
-1. Start redis if not already running:  
+1. Start redis if not already running
 ```
 redis-server
 ```
@@ -44,4 +44,3 @@ celery --broker=redis://localhost flower -A task --address=0.0.0.0 --port=5555 -
 ## To re-analyse previously run jobs:
 Analysis jobs are stored in a local sqlite database to stop duplicate entries
 into the LIMS. To re-analyse anything (in case of an error before LIMS upload) you have to delete that entry from `processed_experiments.sqlite`
-
