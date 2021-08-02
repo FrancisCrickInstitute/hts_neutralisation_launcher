@@ -122,9 +122,12 @@ class Database:
             else:
                 # `finished_at` is null, look how recent `created_at` timestamp is
                 # 3. check how recent `created_at` timestamp is
-                time_now = datetime.datetime.now()
+                time_now = datetime.datetime.utcnow()
+                print(f"time_now = {time_now}")
                 created_at_dt = datetime.datetime.fromisoformat(created_at)
+                print(f"created_at time = {str(created_at_dt)}")
                 time_difference = (time_now - created_at_dt).total_seconds()
+                print(f"time difference (seconds) = {time_difference}")
                 # "recent" defined as within 30 minutes
                 is_recent = int(time_difference) < 60*30
                 if is_recent:
@@ -204,7 +207,7 @@ class Database:
                 f"no entry found for {experiment} {variant} in processed table, cannot update"
             )
         # update `created_at` value to current timestamp
-        now = datetime.datetime.now().replace(microsecond=0).isoformat(" ")
+        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat(" ")
         cursor.execute(
             """
             UPDATE
@@ -229,7 +232,7 @@ class Database:
                 f"no entry found for {experiment} {variant} in processed table, cannot update"
             )
         # update `finished_at` value to current timestamp
-        now = datetime.datetime.now().replace(microsecond=0).isoformat(" ")
+        now = datetime.datetime.utcnow().replace(microsecond=0).isoformat(" ")
         cursor.execute(
             """
             UPDATE
