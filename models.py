@@ -35,7 +35,7 @@ class Stitching(Base):
     finished_at = sql.Column(sql.TIMESTAMP)
 
 
-class Strains(Base):
+class Variant(Base):
     __tablename__ = "NE_available_strains"
     id = sql.Column(sql.Integer, primary_key=True)
     mutant_strain = sql.Column(sql.String(45))

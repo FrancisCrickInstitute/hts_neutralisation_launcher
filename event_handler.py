@@ -6,7 +6,6 @@ from watchdog.events import LoggingEventHandler
 
 import task
 import utils
-from variant_mapper import VariantMapper
 import db
 
 
@@ -23,7 +22,6 @@ class MyEventHandler(LoggingEventHandler):
         engine = db.create_engine()
         session = db.create_session(engine)
         self.database = db.Database(session)
-        self.variant_mapper = VariantMapper()
 
     def on_created(self, event):
         """
@@ -41,14 +39,14 @@ class MyEventHandler(LoggingEventHandler):
             # invalid experiment name, skip
             return None
         plate_name = self.get_plate_name(src_path)
-        variant_letter = self.variant_mapper.get_variant_letter(plate_name)
-        plate_list_384 = self.create_plate_list_384(workflow_id, variant_letter)
+        variant = self.database.get_variant_from_plate_name(plate_name)
+        plate_list_384 = self.create_plate_list_384(workflow_id, variant)
         # check both duplicates have been exported
         if len(plate_list_384) == 2:
-            self.handle_analysis(plate_list_384, workflow_id, variant_letter)
+            self.handle_analysis(plate_list_384, workflow_id, variant)
         self.handle_stitching(src_path, workflow_id, plate_name)
 
-    def handle_analysis(self, plate_list_384, workflow_id, variant_letter):
+    def handle_analysis(self, plate_list_384, workflow_id, variant):
         """
         Determine if valid and new exported data, and if so launches
         a new celery analysis task.
@@ -57,36 +55,36 @@ class MyEventHandler(LoggingEventHandler):
         ------------
         plate_list: list of plate paths from self.create_plate_list_384()
         workflow_id: string
-        variant_letter: string
+        variant: string
 
         Returns:
         --------
         None
         """
-        analysis_state = self.database.get_analysis_state(workflow_id, variant_letter)
+        analysis_state = self.database.get_analysis_state(workflow_id, variant)
         if analysis_state == "finished":
             logging.info(
-                f"workflow_id: {workflow_id} variant: {variant_letter} has already been analysed"
+                f"workflow_id: {workflow_id} variant: {variant} has already been analysed"
             )
             return None
         elif analysis_state == "recent":
             logging.info(
-                f"workflow_id: {workflow_id} variant: {variant_letter} has recently been added to the job queue, skipping..."
+                f"workflow_id: {workflow_id} variant: {variant} has recently been added to the job queue, skipping..."
             )
             return None
         elif analysis_state == "stuck":
             # reset create_at timestamp and resubmit to job queue
-            logging.info(f"workflow_id: {workflow_id} variant: {variant_letter} has old processed entry but not finished, resubmitting to job queue...")
-            self.database.update_analysis_entry(workflow_id, variant_letter)
+            logging.info(f"workflow_id: {workflow_id} variant: {variant} has old processed entry but not finished, resubmitting to job queue...")
+            self.database.update_analysis_entry(workflow_id, variant)
             assert len(plate_list_384) == 2
-            logging.info(f"both plates for {workflow_id}: {variant_letter} found")
+            logging.info(f"both plates for {workflow_id}: {variant} found")
             task.background_analysis_384.delay(plate_list_384)
             logging.info("analysis launched")
         elif analysis_state == "does not exist":
-            logging.info(f"new workflow_id: {workflow_id} variant: {variant_letter}")
+            logging.info(f"new workflow_id: {workflow_id} variant: {variant}")
             assert len(plate_list_384) == 2
-            logging.info(f"both plates for {workflow_id}: {variant_letter} found")
-            self.database.create_analysis_entry(workflow_id, variant_letter)
+            logging.info(f"both plates for {workflow_id}: {variant} found")
+            self.database.create_analysis_entry(workflow_id, variant)
             task.background_analysis_384.delay(plate_list_384)
             logging.info("analysis launched")
         else:
@@ -97,7 +95,7 @@ class MyEventHandler(LoggingEventHandler):
                 `Database.get_analysis_state()`.
                 """
             )
-            return_code = utils.send_simple_slack_alert(workflow_id, variant_letter, message)
+            return_code = utils.send_simple_slack_alert(workflow_id, variant, message)
             if return_code != 200:
                 logging.error(f"{return_code}: failed to send slack alert")
             return None
@@ -136,14 +134,14 @@ class MyEventHandler(LoggingEventHandler):
         parsed_workflow = final_path.split("__")[0][-6:]
         return final_path.startswith("S") and parsed_workflow == workflow_id
 
-    def create_plate_list_384(self, workflow_id, variant_letter):
+    def create_plate_list_384(self, workflow_id, variant):
         """
         create a plate list from an workflow_id and variant names
         """
         all_subdirs = [i for i in os.listdir(self.input_dir)]
         full_paths = [os.path.join(self.input_dir, i) for i in all_subdirs]
         # filter to just those of the specific workflow_id and variants
-        variant_ints = self.variant_mapper.get_variant_ints_from_letter(variant_letter)
+        variant_ints = self.database.get_variant_ints_from_name(variant)
         wanted_workflows = []
         for i in full_paths:
             final_path = os.path.basename(i)

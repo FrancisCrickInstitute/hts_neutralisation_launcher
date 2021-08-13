@@ -2,6 +2,7 @@ import datetime
 import os
 
 import sqlalchemy
+from sqlalchemy import or_
 
 import models
 import utils
@@ -29,17 +30,46 @@ def create_session(engine):
     return Session()
 
 
-def create_local_engine():
-    """docstring"""
-    engine = sqlalchemy.create_engine("sqlite:///home/warchas/test.db")
-    return engine
-
-
 class Database:
     """class docstring"""
 
     def __init__(self, session):
         self.session = session
+
+    def get_variant_from_plate_name(self, plate_name):
+        """
+        plate_name is os.path.basename(full_path).split("__")[0]
+
+        this returns the variant name from the NE_available_strains
+        table based on the plate prefix
+        """
+        plate_prefix = plate_name[:3]
+        result = (
+            self.session.query(models.Variant)
+            .filter(
+                or_(
+                    models.Variant.plate_id_1 == plate_prefix,
+                    models.Variant.plate_id_2 == plate_prefix,
+                )
+            )
+            .first()
+        )
+        if result is None:
+            raise ValueError(
+                f"cannot find variant from plate name {plate_name}"
+            )
+        return result.mutant_strain
+
+    def get_variant_ints_from_name(self, variant_name):
+        """docstring"""
+        result = (
+            self.session.query(models.Variant)
+            .filter(models.Variant.mutant_strain == variant_name)
+            .first()
+        )
+        return [int(result.plate_id_1[1:]), int(result.plate_id_2[:2])]
+
+
 
     def get_analysis_state(self, workflow_id, variant):
         """
