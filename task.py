@@ -13,7 +13,6 @@ from variant_mapper import VariantMapper
 
 
 REDIS_PORT = 6379
-DB_PATH = os.path.expanduser("~/hts_neutralisation_launcher/processed_experiments.sqlite")
 
 
 celery = celery.Celery(
@@ -27,10 +26,12 @@ class BaseTask(celery.Task):
 
     def on_success(self, retval, task_id, args, kwargs):
         """
-        update sqlite database to record already-run
+        update database to record already-run
         analysis and image-stitching.
         """
-        database = db.Database(path=DB_PATH)
+        engine = db.create_engine()
+        session = db.create_session(engine)
+        database = db.Database(session)
         # args is always a tuple
         # for stitching tasks it's a tuple of 1 string
         #     e.g   ("/camp/ABNEUTRALISATION..../indexfile.txt", )
