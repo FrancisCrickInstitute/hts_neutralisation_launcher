@@ -61,15 +61,17 @@ class Database:
         return result.mutant_strain
 
     def get_variant_ints_from_name(self, variant_name):
-        """docstring"""
+        """
+        get plate prefix integers from variant name.
+        e.g "England2" => [1, 2]
+            "B117" => [3, 4]
+        """
         result = (
             self.session.query(models.Variant)
             .filter(models.Variant.mutant_strain == variant_name)
             .first()
         )
-        return [int(result.plate_id_1[1:]), int(result.plate_id_2[:2])]
-
-
+        return sorted([int(result.plate_id_1[1:]), int(result.plate_id_2[1:])])
 
     def get_analysis_state(self, workflow_id, variant):
         """
