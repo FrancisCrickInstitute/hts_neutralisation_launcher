@@ -39,7 +39,11 @@ class MyEventHandler(LoggingEventHandler):
             # invalid experiment name, skip
             return None
         plate_name = self.get_plate_name(src_path)
-        variant = self.database.get_variant_from_plate_name(plate_name)
+        try:
+            variant = self.database.get_variant_from_plate_name(plate_name)
+        except ValueError as e:
+            logging.error(e)
+            return None
         plate_list_384 = self.create_plate_list_384(workflow_id, variant)
         # check both duplicates have been exported
         if len(plate_list_384) == 2:
@@ -153,6 +157,11 @@ class MyEventHandler(LoggingEventHandler):
             ):
                 wanted_workflows.append(i)
         return wanted_workflows
+
+    def get_workflow_id(self, src_path):
+        plate_name = self.get_plate_name(src_path)
+        workflow_id = plate_name[-6:]
+        return workflow_id
 
     @staticmethod
     def get_experiment_name(dir_name):
