@@ -168,15 +168,15 @@ class Database:
         result = (
             self.session.query(models.Analysis)
             .filter(
-                workflow_id == int(workflow_id),
-                variant == variant
+                models.Analysis.workflow_id == int(workflow_id),
+                models.Analysis.variant == variant
             )
             .first()
         )
         return result is not None
 
     def _alert_if_not_exists(self, workflow_id, variant):
-        if not self._processed_entry_exists(workflow_id, variant):
+        if self._processed_entry_exists(workflow_id, variant) is False:
             msg = f"no entry found for {workflow_id} {variant} in processed table, cannot update"
             utils.send_simple_slack_alert(workflow_id=workflow_id, variant=variant, message=msg)
             raise RuntimeError(msg)
