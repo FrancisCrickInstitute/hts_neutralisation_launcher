@@ -41,7 +41,8 @@ class Variant(Base):
     mutant_strain = sql.Column(sql.String(45))
     plate_id_1 = sql.Column(sql.String(5))
     plate_id_2 = sql.Column(sql.String(5))
-
+    deprecated_plate_id_1 = sql.Column(sql.String(5))
+    deprecated_plate_id_2 = sql.Column(sql.String(5))
 
 class Titration(Base):
     __tablename__ = "NE_task_tracking_analysis_titration"
