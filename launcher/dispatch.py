@@ -1,28 +1,17 @@
-"""
-module docstring
-"""
-
 import logging
 import os
 import sys
 import textwrap
 from typing import List
 
-import db
-import slack
-import task
-import utils
-from config import parse_config
-from db import AnalysisState, VariantLookupError
-from snapshot import Snapshot
+from launcher import db
+from launcher import slack
+from launcher import task
+from launcher import utils
+from launcher.db import AnalysisState, VariantLookupError
+from launcher.snapshot import Snapshot
 
 log = logging.getLogger(__name__)
-cfg_analysis = parse_config()["analysis"]
-
-
-RESULTS_DIR = cfg_analysis["results_dir"]
-SNAPSHOT_DB = cfg_analysis["snapshot_db"]
-
 
 class Dispatcher:
     """
@@ -32,15 +21,21 @@ class Dispatcher:
 
     def __init__(
         self,
-        results_dir: str = RESULTS_DIR,
-        db_path: str = SNAPSHOT_DB,
+        config: dict,
+        dryrun: bool = False,
+        disable_snapshot: bool = False,
     ):
-        self.results_dir = results_dir
-        self.db_path = db_path
-        engine = db.create_engine()
-        session = db.create_session(engine)
-        self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
-        self.database = db.Database(session)
+        self.dryrun = dryrun
+        self.disable_snapshot = disable_snapshot
+        cfg_analysis = config["analysis"]
+        self.results_dir = cfg_analysis["results_dir"]
+
+        if disable_snapshot is False:
+            self.db_path = cfg_analysis["snapshot_db"]
+            engine = db.create_engine()
+            session = db.create_session(engine)
+            self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
+            self.database = db.Database(session)
 
     def get_new_directories(self) -> List[str]:
         """
