@@ -96,7 +96,7 @@ class Dispatcher:
         """
         final_path = os.path.basename(path)
         plate_name = utils.get_plate_name(final_path)
-        return plate_name[-6:] == workflow_id and int(final_path[1:3]) in variants
+        return plate_name[-6:] == workflow_id and int(final_path[1:-6]) in variants
 
     def dispatch_plate(self, plate_path: str) -> None:
         """
