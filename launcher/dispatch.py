@@ -23,19 +23,19 @@ class Dispatcher:
         self,
         config: dict,
         dryrun: bool = False,
-        disable_snapshot: bool = False,
     ):
         self.dryrun = dryrun
-        self.disable_snapshot = disable_snapshot
         cfg_analysis = config["analysis"]
         self.results_dir = cfg_analysis["results_dir"]
+        self.db_path = cfg_analysis["snapshot_db"]
+        self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
 
-        if disable_snapshot is False:
-            self.db_path = cfg_analysis["snapshot_db"]
-            engine = db.create_engine()
-            session = db.create_session(engine)
-            self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
-            self.database = db.Database(session)
+        engine = db.create_engine()
+        session = db.create_session(engine)
+        self.database = db.Database(session, dry_run=self.dryrun)
+
+        if self.dryrun:
+            log.info("running in dryrun mode, no data will be written to database")
 
     def get_new_directories(self) -> List[str]:
         """
@@ -102,20 +102,22 @@ class Dispatcher:
         plate_name = utils.get_plate_name(plate_path)
         workflow_id = utils.get_workflow_id(plate_name)
         is_titration = utils.is_titration_plate(plate_name)
+        log.info(f"workflow_id: {workflow_id} plate_name: {plate_name}")
         try:
             variant = self.database.get_variant_from_plate_name(
                 plate_name, is_titration=is_titration
             )
+            log.info(f"variant: {variant}")
         except VariantLookupError as err:
             log.error(err)
             return
-        self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
-        plate_list = self.create_plate_list(workflow_id, variant)
-        log.info(f"plate_list = {plate_list}")
-        if len(plate_list) == 2:
-            self.handle_analysis(
-                plate_list, workflow_id, variant, is_titration=is_titration
-            )
+        # self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
+        # plate_list = self.create_plate_list(workflow_id, variant)
+        # log.info(f"plate_list = {plate_list}")
+        # if len(plate_list) == 2:
+        #     self.handle_analysis(
+        #         plate_list, workflow_id, variant, is_titration=is_titration
+        #     )
 
     def handle_analysis(
         self, plate_list: List[str], workflow_id: str, variant: str, is_titration=False

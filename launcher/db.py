@@ -1,13 +1,17 @@
+import logging
 import datetime
 import os
 from enum import Enum, auto
 from typing import List
 
-import models
-import slack
 import sqlalchemy
 import sqlalchemy.exc
 from sqlalchemy import or_
+
+from launcher import models
+from launcher import slack
+
+log = logging.getLogger(__name__)
 
 
 class AnalysisState(Enum):
@@ -17,7 +21,7 @@ class AnalysisState(Enum):
     STALE = auto()
 
 
-def create_engine(test=False) -> sqlalchemy.Engine:
+def create_engine(test=False):
     """create sqlalchemy engine"""
     user = os.environ.get("NE_USER")
     if test:
@@ -27,9 +31,10 @@ def create_engine(test=False) -> sqlalchemy.Engine:
     password = os.environ.get("NE_PASSWORD")
     if None in (user, host, password):
         raise EnvironmentError("db credentials not found in users environment")
-    engine = sqlalchemy.create_engine(
-        f"mysql://{user}:{password}@{host}/serology", pool_pre_ping=True
-    )
+    engine = sqlalchemy.create_engine(f'mysql+pymysql://{user}:{password}@{host}/serology')
+    # engine = sqlalchemy.create_engine(
+    #     f"mysql://{user}:{password}@{host}/serology"
+    # )
     return engine
 
 
@@ -42,8 +47,9 @@ def create_session(engine) -> sqlalchemy.orm.Session:
 class Database:
     """class to interact with the LIMS serology database."""
 
-    def __init__(self, session: sqlalchemy.orm.Session, task_timeout_mins: int = 30):
+    def __init__(self, session: sqlalchemy.orm.Session, dry_run: bool, task_timeout_mins: int = 30):
         self.session = session
+        self.dry_run = dry_run
         self.task_timeout_mins = task_timeout_mins
         self.task_timeout_sec = task_timeout_mins * 60
 
@@ -250,76 +256,103 @@ class Database:
 
     def create_analysis_entry(self, workflow_id: str, variant: str) -> None:
         """create entry for new job submission with current timestamp"""
-        analysis = models.Analysis(
-            workflow_id=int(workflow_id), variant=variant, created_at=self.now()
-        )
-        self.session.add(analysis)
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: creating analysis entry for {workflow_id} {variant}")
+        else:
+            analysis = models.Analysis(
+                workflow_id=int(workflow_id), variant=variant, created_at=self.now()
+            )
+            self.session.add(analysis)
+            self.session.commit()
 
     def update_analysis_entry(self, workflow_id: str, variant: str) -> None:
         """update created_at time for resubmitting a stale job"""
-        self._alert_if_not_exists(workflow_id, variant)
-        self.session.query(models.Analysis).filter(
-            models.Analysis.workflow_id == int(workflow_id)
-        ).filter(models.Analysis.variant == variant).update(
-            {models.Analysis.created_at: self.now()}
-        )
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: updating analysis entry for {workflow_id} {variant}")
+        else:
+            self._alert_if_not_exists(workflow_id, variant)
+            self.session.query(models.Analysis).filter(
+                models.Analysis.workflow_id == int(workflow_id)
+            ).filter(models.Analysis.variant == variant).update(
+                {models.Analysis.created_at: self.now()}
+            )
+            self.session.commit()
 
     def mark_analysis_entry_as_finished(self, workflow_id: str, variant: str) -> None:
         """run on task success, update finished_at time"""
-        self._alert_if_not_exists(workflow_id, variant)
-        # update `finished_at` value to current timestamp
-        self.session.query(models.Analysis).filter(
-            models.Analysis.workflow_id == int(workflow_id)
-        ).filter(models.Analysis.variant == variant).update(
-            {models.Analysis.finished_at: self.now()}
-        )
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: marking analysis entry as finished for {workflow_id} {variant}")
+        else:
+            self._alert_if_not_exists(workflow_id, variant)
+            # update `finished_at` value to current timestamp
+            self.session.query(models.Analysis).filter(
+                models.Analysis.workflow_id == int(workflow_id)
+            ).filter(models.Analysis.variant == variant).update(
+                {models.Analysis.finished_at: self.now()}
+            )
+            self.session.commit()
 
     def update_stitching_entry(self, plate_name: str) -> None:
         """update created_at time for resubmitting a stale job"""
-        self.session.query(models.Stitching).filter(
-            models.Stitching.plate_name == plate_name
-        ).update({models.Stitching.created_at: self.now()})
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: updating stitching entry for {plate_name}")
+        else:
+            self.session.query(models.Stitching).filter(
+                models.Stitching.plate_name == plate_name
+            ).update({models.Stitching.created_at: self.now()})
+            self.session.commit()
 
     def mark_stitching_entry_as_finished(self, plate_name: str) -> None:
-        """run on task success, update finished_at time"""
-        self.session.query(models.Stitching).filter(
-            models.Stitching.plate_name == plate_name
-        ).update({models.Stitching.finished_at: self.now()})
-        self.session.commit()
+            """run on task success, update finished_at time"""
+            if self.dry_run:
+                log.info(f"DRY-RUN: marking stitching entry as finished for {plate_name}")
+            else:
+                self.session.query(models.Stitching).filter(
+                    models.Stitching.plate_name == plate_name
+                ).update({models.Stitching.finished_at: self.now()})
+                self.session.commit()
 
     def create_stitching_entry(self, plate_name: str) -> None:
         """add a plate to the stitched database"""
-        stitched_plate = models.Stitching(plate_name=plate_name, created_at=self.now())
-        self.session.add(stitched_plate)
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: creating stitching entry for {plate_name}")
+        else:
+            stitched_plate = models.Stitching(plate_name=plate_name, created_at=self.now())
+            self.session.add(stitched_plate)
+            self.session.commit()
 
     def create_titration_entry(self, workflow_id: str, variant: str) -> None:
         """create entry for new job with current timestamp"""
-        titration = models.Titration(
-            workflow_id=int(workflow_id), variant=variant, created_at=self.now()
-        )
-        self.session.add(titration)
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: creating titration entry for {workflow_id} {variant}")
+        else:
+            titration = models.Titration(
+                workflow_id=int(workflow_id), variant=variant, created_at=self.now()
+            )
+            self.session.add(titration)
+            self.session.commit()
 
     def update_titration_entry(self, workflow_id: str, variant: str) -> None:
         """update created_at time for resubmitting a stale job"""
-        self.session.query(models.Titration).filter(
-            models.Titration.workflow_id == int(workflow_id),
-            models.Titration.variant == variant,
-        ).update({models.Titration.create_at: self.now()})
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: updating titration entry for {workflow_id} {variant}")
+        else:
+            self.session.query(models.Titration).filter(
+                models.Titration.workflow_id == int(workflow_id),
+                models.Titration.variant == variant,
+            ).update({models.Titration.create_at: self.now()})
+            self.session.commit()
 
     def mark_titration_entry_as_finished(self, workflow_id: str, variant: str) -> None:
         """run on task success, update finished_at time"""
-        self.session.query(models.Titration).filter(
-            models.Titration.workflow_id == int(workflow_id),
-            models.Titration.variant == variant,
-        ).update({models.Titration.finished_at: self.now()})
-        self.session.commit()
+        if self.dry_run:
+            log.info(f"DRY-RUN: marking titration entry as finished for {workflow_id} {variant}")
+        else:
+            self.session.query(models.Titration).filter(
+                models.Titration.workflow_id == int(workflow_id),
+                models.Titration.variant == variant,
+            ).update({models.Titration.finished_at: self.now()})
+            self.session.commit()
 
 
 class VariantLookupError(Exception):

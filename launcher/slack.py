@@ -3,7 +3,7 @@ import os
 import textwrap
 
 import requests
-from config import parse_config
+from launcher.config import parse_config
 
 log = logging.getLogger(__name__)
 cfg = parse_config()
@@ -14,11 +14,11 @@ RED = "#ad1720"
 YELLOW = "#ffce00"
 
 SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_NEUTRALISATION")
-if not SLACK_WEBHOOK_URL:
-    raise EnvironmentError(
-        "'SLACK_WEBHOOK_NEUTRALISATION' environment variable not found.",
-        "A slack webhook url is required to send error notifications.",
-    )
+# if not SLACK_WEBHOOK_URL:
+#     raise EnvironmentError(
+#         "'SLACK_WEBHOOK_NEUTRALISATION' environment variable not found.",
+#         "A slack webhook url is required to send error notifications.",
+#     )
 
 
 def send_alert(exc, task_id, args, kwargs, einfo) -> None:
@@ -77,7 +77,7 @@ def send_warning(message: str) -> None:
     log_response(response)
 
 
-def send_simple_alert(workflow_id: str | int, variant: str, message: str) -> None:
+def send_simple_alert(workflow_id: str, variant: str, message: str) -> None:
     """send slack message on failure"""
     data = {
         "text": "Something broke",

@@ -5,12 +5,13 @@ from typing import List, Tuple
 from urllib.error import HTTPError, URLError
 
 import celery
-import db
-import plaque_assay
-import slack
 import sqlalchemy.exc
-import stitch_images
-from config import parse_config
+
+from launcher import db
+from launcher import slack
+from launcher import stitch_images
+from launcher.config import parse_config
+import plaque_assay
 
 cfg_celery = parse_config()["celery"]
 
