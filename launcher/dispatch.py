@@ -28,7 +28,9 @@ class Dispatcher:
         cfg_analysis = config["analysis"]
         self.results_dir = cfg_analysis["results_dir"]
         self.db_path = cfg_analysis["snapshot_db"]
-        self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
+        # self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
+        # Support new BC scheme
+        self.regex_filter = r"^(?:[A-Z][0-9]{8}_.*|[A-Z]{4}[0-9]{7}__.*)-Measurement [0-9]$"
 
         engine = db.create_engine()
         session = db.create_session(engine)
