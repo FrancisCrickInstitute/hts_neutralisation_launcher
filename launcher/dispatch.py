@@ -77,10 +77,10 @@ class Dispatcher:
         """
         all_subdirs = os.listdir(self.results_dir)
         full_paths = sorted([os.path.join(self.results_dir, i) for i in all_subdirs])
-        variant_ints = self.database.get_variant_ints_from_name(variant)
+        variant_codes = self.database.get_variant_codes_from_name(variant)
         wanted_workflows = []
         for path in full_paths:
-            if self.is_matching_plate(path, workflow_id, variant_ints):
+            if self.is_matching_plate(path, workflow_id, variant_codes):
                 wanted_workflows.append(path)
                 if len(wanted_workflows) == 2:
                     # already found both plates, no point continuing, exit early
@@ -88,7 +88,7 @@ class Dispatcher:
         return wanted_workflows
 
     def is_matching_plate(
-        self, path: str, workflow_id: str, variants: List[int]
+        self, path: str, workflow_id: str, variants: List[str]
     ) -> bool:
         """
         Determine if a plate path matches a given workflow_id + variant.
@@ -96,7 +96,12 @@ class Dispatcher:
         """
         final_path = os.path.basename(path)
         plate_name = utils.get_plate_name(final_path)
-        return plate_name[-6:] == workflow_id and int(final_path[1:-6]) in variants
+
+        if len(plate_name) == 8:
+            return plate_name[-6:] == workflow_id and 'S'+final_path[:-6] in variants
+        if len(plate_name) == 9:
+            return plate_name[-6:] == workflow_id and 'S' + final_path[1:-6] in variants
+        return plate_name[-6:] == workflow_id and final_path[1:-6] in variants
 
     def dispatch_plate(self, plate_path: str) -> None:
         """

@@ -94,7 +94,7 @@ class Database:
             )
         return result.mutant_strain
 
-    def get_variant_ints_from_name(self, variant_name: str) -> List[int]:
+    def get_variant_codes_from_name(self, variant_name: str) -> List[str]:
         """
         get plate prefix integers from variant name.
         e.g "England2" => [1, 2]
@@ -105,7 +105,9 @@ class Database:
             .filter(models.Variant.mutant_strain == variant_name)
             .first()
         )
-        return sorted([int(result.plate_id_1[-1]), int(result.plate_id_2[-1])])
+        if result.deprecated_plate_id_1 and result.deprecated_plate_id_2:
+            return [result.plate_id_1, result.plate_id_2, result.deprecated_plate_id_1, result.deprecated_plate_id_2]
+        return sorted([result.plate_id_1, result.plate_id_2])
 
     def get_analysis_state(
         self, workflow_id: str, variant: str, is_titration: bool = False
