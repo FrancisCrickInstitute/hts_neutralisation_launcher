@@ -3,6 +3,7 @@ import datetime
 import os
 from enum import Enum, auto
 from typing import List
+import re
 
 import sqlalchemy
 import sqlalchemy.exc
@@ -61,6 +62,7 @@ class Database:
             .isoformat(" ")
         )
 
+
     def get_variant_from_plate_name(self, plate_name: str, is_titration=False) -> str:
         """
         plate_name is os.path.basename(full_path).split("__")[0]
@@ -68,41 +70,34 @@ class Database:
         this returns the variant name from the NE_available_strains
         table based on the plate prefix
         """
-        plate_prefix = plate_name[:3]
-        if is_titration:
-            plate_prefix = plate_prefix.replace("T", "S")
-        else:
-            if not plate_prefix.startswith("S"):
-                # plate prefixes with "A" etc.
-                plate_prefix = "S" + plate_prefix[1:]
+        plate_prefix = plate_name[:-6]
+
+        if len(plate_prefix) == 2:
+            # Case if just missing any prefix S T or A
+            plate_prefix = "S" + plate_prefix
+        if len(plate_prefix) == 3:
+            # E.g. old style T01-123456
+            plate_prefix = "S" + plate_prefix[1:]
+        elif len(plate_prefix) > 3:
+            # E.g. new style TAAA1-123456
+            plate_prefix = plate_prefix[1:]
+
         result = (
             self.session.query(models.Variant)
             .filter(
                 or_(
                     models.Variant.plate_id_1 == plate_prefix,
                     models.Variant.plate_id_2 == plate_prefix,
+                    models.Variant.deprecated_plate_id_1 == plate_prefix,
+                    models.Variant.deprecated_plate_id_2 == plate_prefix,
                 )
             )
             .first()
         )
         if result is None:
-            # try without any prefix, variants might be listed in the database
-            # by their digits alone without any sample type prefix.
-            plate_prefix = plate_prefix[1:]
-            result = (
-                self.session.query(models.Variant)
-                .filter(
-                    or_(
-                        models.Variant.plate_id_1 == plate_prefix,
-                        models.Variant.plate_id_2 == plate_prefix,
-                    )
-                )
-                .first()
+            raise VariantLookupError(
+                f"cannot find variant from plate name {plate_name}"
             )
-            if result is None:
-                raise VariantLookupError(
-                    f"cannot find variant from plate name {plate_name}"
-                )
         return result.mutant_strain
 
     def get_variant_ints_from_name(self, variant_name: str) -> List[int]:
@@ -116,7 +111,7 @@ class Database:
             .filter(models.Variant.mutant_strain == variant_name)
             .first()
         )
-        return sorted([int(result.plate_id_1[1:]), int(result.plate_id_2[1:])])
+        return sorted([int(result.plate_id_1[-1]), int(result.plate_id_2[-1])])
 
     def get_analysis_state(
         self, workflow_id: str, variant: str, is_titration: bool = False

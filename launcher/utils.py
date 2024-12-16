@@ -49,7 +49,7 @@ def is_titration_plate(plate_name: str) -> bool:
     determines if a plate is a titration plate.
     titrations plates starts with T{variant_ints}{workflow_id}
     """
-    return plate_name.startswith("T") and plate_name[1:].isdigit()
+    return plate_name.startswith("T")
 
 
 def is_384_well_plate(dir_name: str, workflow_id: str) -> bool:
