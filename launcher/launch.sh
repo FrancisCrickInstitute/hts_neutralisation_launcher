@@ -43,4 +43,4 @@ create_window "flower" \
     "celery --broker=redis://localhost flower -A task --address=0.0.0.0 --port=5555 --basic_auth=hts:1010"
 
 echo "All tasks started"
-tmux attach-session -t $SESSION
+# tmux attach-session -t $SESSION

@@ -91,14 +91,20 @@ class Dispatcher:
         Determine if a plate path matches a given workflow_id + variant.
         Variant info is passed as a list integers, e.g [1, 2] is "England2".
         """
+        # Parse plate name
         final_path = os.path.basename(path)
         plate_name = utils.get_plate_name(final_path)
+        plate_workflow_id = plate_name[-6:]
+        plate_prefix = plate_name[:-6]
 
+        # Old scheme
         if len(plate_name) == 8:
-            return plate_name[-6:] == workflow_id and 'S'+final_path[:-6] in variants
+            return plate_workflow_id == workflow_id and 'S' + plate_prefix in variants
+        # S + 2 number code
         if len(plate_name) == 9:
-            return plate_name[-6:] == workflow_id and 'S' + final_path[1:-6] in variants
-        return plate_name[-6:] == workflow_id and final_path[1:-6] in variants
+            return plate_workflow_id == workflow_id and plate_prefix in variants
+        # New scheme
+        return plate_workflow_id == workflow_id and plate_prefix[1:] in variants
 
     def dispatch_plate(self, plate_path: str) -> None:
         """
@@ -109,7 +115,7 @@ class Dispatcher:
         plate_name = utils.get_plate_name(plate_path)
         workflow_id = utils.get_workflow_id(plate_name)
         is_titration = utils.is_titration_plate(plate_name)
-        log.info(f"workflow_id: {workflow_id} plate_name: {plate_name}")
+        log.info(f"DISPATCH | workflow_id: {workflow_id} plate_name: {plate_name}")
         try:
             variant = self.database.get_variant_from_plate_name(
                 plate_name, is_titration=is_titration
