@@ -23,6 +23,8 @@ SLACK_WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_NEUTRALISATION")
 
 def send_alert(exc, task_id, args, kwargs, einfo) -> None:
     """send slack message on failure"""
+    if not SLACK_WEBHOOK_URL:
+        return
     data = {
         "text": "Something broke",
         "username": "NE analysis",
@@ -55,6 +57,8 @@ def send_alert(exc, task_id, args, kwargs, einfo) -> None:
 
 def send_warning(message: str) -> None:
     """send slack warning message"""
+    if not SLACK_WEBHOOK_URL:
+        return
     data = {
         "text": "Something might be wrong",
         "username": "NE analysis",
@@ -79,6 +83,8 @@ def send_warning(message: str) -> None:
 
 def send_simple_alert(workflow_id: str, variant: str, message: str) -> None:
     """send slack message on failure"""
+    if not SLACK_WEBHOOK_URL:
+        return
     data = {
         "text": "Something broke",
         "username": "NE analysis",
