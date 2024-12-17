@@ -113,13 +113,13 @@ class Dispatcher:
         except VariantLookupError as err:
             log.error(err)
             return
-        # self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
-        # plate_list = self.create_plate_list(workflow_id, variant)
-        # log.info(f"plate_list = {plate_list}")
-        # if len(plate_list) == 2:
-        #     self.handle_analysis(
-        #         plate_list, workflow_id, variant, is_titration=is_titration
-        #     )
+        self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
+        plate_list = self.create_plate_list(workflow_id, variant)
+        log.info(f"plate_list = {plate_list}")
+        if len(plate_list) == 2:
+            self.handle_analysis(
+                plate_list, workflow_id, variant, is_titration=is_titration
+            )
 
     def handle_analysis(
         self, plate_list: List[str], workflow_id: str, variant: str, is_titration=False
