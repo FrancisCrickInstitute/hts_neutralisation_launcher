@@ -22,7 +22,10 @@ create_window() {
     local sleep_time=${3:-3}
     echo "Starting $name..."
     tmux new-window -t $SESSION -n "$name"
-    tmux send-keys -t $SESSION "source /opt/homebrew/Caskroom/miniforge/base/bin/activate $MAMBA_ENV && export PYTHONPATH="$(pwd)" && $command" C-m
+    tmux send-keys -t $SESSION "source /opt/homebrew/Caskroom/miniforge/base/bin/activate $MAMBA_ENV && \
+    export PYTHONPATH="$(pwd)" && \
+    export NE_USER='serology_admin' NE_HOST_PROD='clvd0-db-u-t-43.thecrick.test' NE_PASSWORD='/0NYpJS:06CeaYSFSxc&' && \
+    $command" C-m
     sleep $sleep_time
 }
 

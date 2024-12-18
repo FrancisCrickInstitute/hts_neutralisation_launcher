@@ -21,6 +21,9 @@ class TestStorageInterface(unittest.TestCase):
 
         # Parse the config
         config = parse_config("./tests/data/test_config.ini")
+        os.environ['NE_USER'] = 'serology_admin'
+        os.environ['NE_PASSWORD'] = '/0NYpJS:06CeaYSFSxc&'
+        os.environ['NE_HOST_PROD'] = 'clvd0-db-u-t-43.thecrick.test'
 
         # Run the dispatcher
         dispatcher = Dispatcher(config, dryrun=True)

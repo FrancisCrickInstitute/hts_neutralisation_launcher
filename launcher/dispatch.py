@@ -11,6 +11,8 @@ from launcher import utils
 from launcher.db import AnalysisState, VariantLookupError
 from launcher.snapshot import Snapshot
 
+import plaque_assay
+
 log = logging.getLogger(__name__)
 
 class Dispatcher:
@@ -100,11 +102,12 @@ class Dispatcher:
         # Old scheme
         if len(plate_name) == 8:
             return plate_workflow_id == workflow_id and 'S' + plate_prefix in variants
+        plate_prefix = plate_name[1:-6]
         # S + 2 number code
         if len(plate_name) == 9:
-            return plate_workflow_id == workflow_id and plate_prefix in variants
+            return plate_workflow_id == workflow_id and 'S' + plate_prefix in variants
         # New scheme
-        return plate_workflow_id == workflow_id and plate_prefix[1:] in variants
+        return plate_workflow_id == workflow_id and plate_prefix in variants
 
     def dispatch_plate(self, plate_path: str) -> None:
         """
@@ -124,7 +127,7 @@ class Dispatcher:
         except VariantLookupError as err:
             log.error(err)
             return
-        self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
+        # self.handle_stitching(plate_path, workflow_id, plate_name, is_titration)
         plate_list = self.create_plate_list(workflow_id, variant)
         log.info(f"plate_list = {plate_list}")
         if len(plate_list) == 2:
@@ -168,22 +171,24 @@ class Dispatcher:
             )
             if is_titration:
                 self.database.update_titration_entry(workflow_id, variant)
-                task.background_titration_analysis_384(plate_list)
+                # task.background_titration_analysis_384(plate_list)
                 log.info("titration analysis launched")
             else:
                 self.database.update_analysis_entry(workflow_id, variant)
-                task.background_analysis_384.delay(plate_list)
+                # task.background_analysis_384.delay(plate_list)
+                plaque_assay.main.run(plate_list)
                 log.info("analysis launched")
         elif analysis_state == AnalysisState.NEW:
             log.info(f"new workflow_id: {workflow_id} variant: {variant}")
             log.info(f"both plates for {workflow_id}: {variant} found")
             if is_titration:
                 self.database.create_titration_entry(workflow_id, variant)
-                task.background_titration_analysis_384.delay(plate_list)
+                # task.background_titration_analysis_384.delay(plate_list)
                 log.info("titration analysis launched")
             else:
                 self.database.create_analysis_entry(workflow_id, variant)
-                task.background_analysis_384.delay(plate_list)
+                # task.background_analysis_384.delay(plate_list)
+                plaque_assay.main.run(plate_list)
                 log.info("analysis launched")
         else:
             log.error(f"invalid analysis state {analysis_state}, sending slack alert")
