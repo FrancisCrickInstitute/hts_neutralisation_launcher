@@ -39,8 +39,11 @@ class Dispatcher:
         self.db_path = db_path
         engine = db.create_engine()
         session = db.create_session(engine)
-        self.regex_filter = r"^[A-Z][0-9]{8}_.*-Measurement [0-9]$"
         self.database = db.Database(session)
+
+        # Support new BC scheme
+        # self.regex_filter = "[A-Z][0-9]{8}__.*-Measurement [0-9]"
+        self.regex_filter = r"^(?:[A-Z][0-9]{8}_.*|[A-Z]{4}[0-9]{7}__.*)-Measurement [0-9]$"
 
     def get_new_directories(self) -> List[str]:
         """
@@ -53,15 +56,17 @@ class Dispatcher:
         """
         snapshot = Snapshot(self.results_dir, self.db_path, regex=self.regex_filter)
         if snapshot.current_hash == snapshot.stored_hash:
-            log.info(
+            log.debug(
                 f"hash of {self.results_dir} contents remains unchanged, exiting..."
             )
+            print(f"hash of {self.results_dir} contents remains unchanged, exiting...")
             sys.exit(0)
         new_data = snapshot.get_new_dirs()
         if len(new_data) == 0:
             log.info(
                 f"{self.results_dir} has changed, but no new valid directories found, exiting..."
             )
+            print(f"{self.results_dir} has changed, but no new valid directories found, exiting...")
             snapshot.make_snapshot()
             sys.exit(0)
         snapshot.make_snapshot()
@@ -77,10 +82,10 @@ class Dispatcher:
         """
         all_subdirs = os.listdir(self.results_dir)
         full_paths = sorted([os.path.join(self.results_dir, i) for i in all_subdirs])
-        variant_ints = self.database.get_variant_ints_from_name(variant)
+        variant_codes = self.database.get_variant_codes_from_name(variant)
         wanted_workflows = []
         for path in full_paths:
-            if self.is_matching_plate(path, workflow_id, variant_ints):
+            if self.is_matching_plate(path, workflow_id, variant_codes):
                 wanted_workflows.append(path)
                 if len(wanted_workflows) == 2:
                     # already found both plates, no point continuing, exit early
@@ -94,9 +99,21 @@ class Dispatcher:
         Determine if a plate path matches a given workflow_id + variant.
         Variant info is passed as a list integers, e.g [1, 2] is "England2".
         """
+        # Parse plate name
         final_path = os.path.basename(path)
         plate_name = utils.get_plate_name(final_path)
-        return plate_name[-6:] == workflow_id and int(final_path[1:3]) in variants
+        plate_workflow_id = plate_name[-6:]
+        plate_prefix = plate_name[:-6]
+
+        # Old scheme
+        if len(plate_name) == 8:
+            return plate_workflow_id == workflow_id and 'S' + plate_prefix in variants
+        plate_prefix = plate_name[1:-6]
+        # S + 2 number code
+        if len(plate_name) == 9:
+            return plate_workflow_id == workflow_id and 'S' + plate_prefix in variants
+        # New scheme
+        return plate_workflow_id == workflow_id and plate_prefix in variants
 
     def dispatch_plate(self, plate_path: str) -> None:
         """
@@ -159,11 +176,11 @@ class Dispatcher:
             if is_titration:
                 self.database.update_titration_entry(workflow_id, variant)
                 task.background_titration_analysis_384(plate_list)
-                log.info("titration analysis launched")
+                log.info(f"titration analysis launched for {workflow_id} {variant}")
             else:
                 self.database.update_analysis_entry(workflow_id, variant)
                 task.background_analysis_384.delay(plate_list)
-                log.info("analysis launched")
+                log.info(f"analysis launched for {workflow_id} {variant}")
         elif analysis_state == AnalysisState.NEW:
             log.info(f"new workflow_id: {workflow_id} variant: {variant}")
             log.info(f"both plates for {workflow_id}: {variant} found")
@@ -174,7 +191,7 @@ class Dispatcher:
             else:
                 self.database.create_analysis_entry(workflow_id, variant)
                 task.background_analysis_384.delay(plate_list)
-                log.info("analysis launched")
+                log.info(f"analysis launched for {workflow_id} {variant}")
         else:
             log.error(f"invalid analysis state {analysis_state}, sending slack alert")
             message = textwrap.dedent(

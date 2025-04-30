@@ -17,7 +17,7 @@ class AnalysisState(Enum):
     STALE = auto()
 
 
-def create_engine(test=False) -> sqlalchemy.Engine:
+def create_engine(test=False):
     """create sqlalchemy engine"""
     user = os.environ.get("NE_USER")
     if test:
@@ -49,11 +49,7 @@ class Database:
 
     @staticmethod
     def now() -> str:
-        return (
-            datetime.datetime.now(datetime.timezone.utc)
-            .replace(microsecond=0)
-            .isoformat(" ")
-        )
+        return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(" ")
 
     def get_variant_from_plate_name(self, plate_name: str, is_titration=False) -> str:
         """
@@ -62,44 +58,37 @@ class Database:
         this returns the variant name from the NE_available_strains
         table based on the plate prefix
         """
-        plate_prefix = plate_name[:3]
-        if is_titration:
-            plate_prefix = plate_prefix.replace("T", "S")
-        else:
-            if not plate_prefix.startswith("S"):
-                # plate prefixes with "A" etc.
-                plate_prefix = "S" + plate_prefix[1:]
+        plate_prefix = plate_name[:-6]
+
+        if len(plate_prefix) == 2:
+            # Case if just missing any prefix S T or A
+            plate_prefix = "S" + plate_prefix
+        if len(plate_prefix) == 3:
+            # E.g. old style T01-123456
+            plate_prefix = "S" + plate_prefix[1:]
+        elif len(plate_prefix) > 3:
+            # E.g. new style TAAA1-123456
+            plate_prefix = plate_prefix[1:]
+
         result = (
             self.session.query(models.Variant)
             .filter(
                 or_(
                     models.Variant.plate_id_1 == plate_prefix,
                     models.Variant.plate_id_2 == plate_prefix,
+                    models.Variant.deprecated_plate_id_1 == plate_prefix,
+                    models.Variant.deprecated_plate_id_2 == plate_prefix,
                 )
             )
             .first()
         )
         if result is None:
-            # try without any prefix, variants might be listed in the database
-            # by their digits alone without any sample type prefix.
-            plate_prefix = plate_prefix[1:]
-            result = (
-                self.session.query(models.Variant)
-                .filter(
-                    or_(
-                        models.Variant.plate_id_1 == plate_prefix,
-                        models.Variant.plate_id_2 == plate_prefix,
-                    )
-                )
-                .first()
+            raise VariantLookupError(
+                f"cannot find variant from plate name {plate_name}"
             )
-            if result is None:
-                raise VariantLookupError(
-                    f"cannot find variant from plate name {plate_name}"
-                )
         return result.mutant_strain
 
-    def get_variant_ints_from_name(self, variant_name: str) -> List[int]:
+    def get_variant_codes_from_name(self, variant_name: str) -> List[str]:
         """
         get plate prefix integers from variant name.
         e.g "England2" => [1, 2]
@@ -110,7 +99,9 @@ class Database:
             .filter(models.Variant.mutant_strain == variant_name)
             .first()
         )
-        return sorted([int(result.plate_id_1[1:]), int(result.plate_id_2[1:])])
+        if result.deprecated_plate_id_1 and result.deprecated_plate_id_2:
+            return [result.plate_id_1, result.plate_id_2, result.deprecated_plate_id_1, result.deprecated_plate_id_2]
+        return sorted([result.plate_id_1, result.plate_id_2])
 
     def get_analysis_state(
         self, workflow_id: str, variant: str, is_titration: bool = False
@@ -172,7 +163,8 @@ class Database:
             else:
                 # `finished_at` is null, look how recent `created_at` timestamp is
                 # 3. check how recent `created_at` timestamp is
-                time_now = datetime.datetime.now(datetime.timezone.utc)
+                #time_now = datetime.datetime.now(datetime.timezone.utc)
+                time_now = datetime.datetime.now()
                 time_difference = (time_now - result.created_at).total_seconds()
                 # "recent" defined as within 30 minutes
                 is_recent = int(time_difference) < self.task_timeout_sec
@@ -198,7 +190,8 @@ class Database:
             return AnalysisState.FINISHED
         else:
             # see if it's been recently submitted
-            time_now = datetime.datetime.now(datetime.timezone.utc)
+            #time_now = datetime.datetime.now(datetime.timezone.utc)
+            time_now = datetime.datetime.now()
             time_difference = (time_now - result.created_at).total_seconds()
             is_recent = int(time_difference) < self.task_timeout_sec
             return AnalysisState.RECENT if is_recent else AnalysisState.STALE
