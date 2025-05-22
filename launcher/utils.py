@@ -82,9 +82,9 @@ def get_plate_name(dir_name: str) -> str:
     get the name of the plate from the full directory path
     e.g
         get_plate_name(
-            "/some/path/S01000999__2021-01-01T00_00_00-Measurement 1"
+            "/some/path/SABG1001801__2021-01-01T00_00_00-Measurement 1"
         )
-        output: "S01000999"
+        output: "SABG1001801"
     """
     plate_dir = os.path.basename(dir_name)
     return plate_dir.split("__")[0]
