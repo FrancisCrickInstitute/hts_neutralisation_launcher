@@ -2,6 +2,8 @@ import logging
 from dispatch import Dispatcher
 from config import parse_config
 
+from handlers import HTTPHandler
+
 
 def main():
     dispatch = Dispatcher()
@@ -17,4 +19,8 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s: %(levelname)s: %(name)s: %(message)s",
     )
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    http_handler = HTTPHandler(app="neut_launcher")
+    logger.addHandler(http_handler)
     main()

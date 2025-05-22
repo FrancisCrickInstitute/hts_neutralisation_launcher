@@ -7,12 +7,14 @@ import os
 import shutil
 import sys
 
+import pytest
+
 BASE_DIR = os.path.dirname(__file__)
 STITCH_IMAGE_DIR = os.path.join(BASE_DIR, "..", "launcher" "stitch_images")
-TEST_DATA_DIR = os.path.join(BASE_DIR, "test_data")
+data_DIR = os.path.join(BASE_DIR, "data")
 TEST_OUTPUT_DIR = os.path.join(BASE_DIR, "output_dir")
-INDEXFILE_PATH = os.path.join(TEST_DATA_DIR, "indexfile.txt")
-MISSING_IMG_PATH = os.path.join(TEST_DATA_DIR, "placeholder_image.png")
+INDEXFILE_PATH = os.path.join(data_DIR, "indexfile.txt")
+MISSING_IMG_PATH = os.path.join(data_DIR, "placeholder_image.png")
 
 sys.path.append(os.path.join(BASE_DIR, "launcher"))
 from launcher.stitch_images import ImageStitcher
@@ -31,18 +33,21 @@ def setup_module():
     stitcher.stitch_and_save_all_samples_and_plates()
 
 
+@pytest.mark.only_run_with_direct_target
 def test_creates_missing_images():
-    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "test_data")
+    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "data")
     assert "well_H12.png" in os.listdir(plate_output_dir)
 
 
+@pytest.mark.only_run_with_direct_target
 def test_creates_parent_directory():
-    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "test_data")
+    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "data")
     assert os.path.isdir(plate_output_dir)
 
 
+@pytest.mark.only_run_with_direct_target
 def test_creates_all_expected_files():
-    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "test_data")
+    plate_output_dir = os.path.join(TEST_OUTPUT_DIR, "data")
     all_files = os.listdir(plate_output_dir)
     assert len(all_files) == 98
     well_files = [i for i in all_files if i.startswith("well_")]

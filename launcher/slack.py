@@ -1,8 +1,10 @@
 import logging
 import os
 import textwrap
+from typing import Union
 
 import requests
+
 from config import parse_config
 
 log = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ def send_warning(message: str) -> None:
     log_response(response)
 
 
-def send_simple_alert(workflow_id: str | int, variant: str, message: str) -> None:
+def send_simple_alert(workflow_id: Union[str, int], variant: str, message: str) -> None:
     """send slack message on failure"""
     data = {
         "text": "Something broke",

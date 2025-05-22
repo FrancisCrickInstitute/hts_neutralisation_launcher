@@ -3,6 +3,8 @@ import logging
 from config import parse_config
 from dispatch import Dispatcher
 
+from handlers import HTTPHandler
+
 cfg_titration = parse_config()["titration"]
 RESULTS_DIR = cfg_titration["results_dir"]
 SNAPSHOT_DB_PATH = cfg_titration["snapshot_db"]
@@ -23,4 +25,8 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s: %(levelname)s: %(name)s: %(message)s",
     )
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    http_handler = HTTPHandler(app="neut_launcher_titration")
+    logger.addHandler(http_handler)
     main()

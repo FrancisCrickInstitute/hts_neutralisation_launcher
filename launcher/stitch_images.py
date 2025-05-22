@@ -9,6 +9,7 @@ import pandas as pd
 import skimage
 import skimage.io
 import skimage.transform
+
 import utils
 from config import parse_config, to_int_tup
 from well_dict import well_dict as WELL_DICT
@@ -65,6 +66,7 @@ class ImageStitcher:
         indexfile = pd.read_csv(indexfile_path, sep="\t")
         self.indexfile = self.fix_indexfile(indexfile)
         self.output_dir = output_dir
+        self.output_dir_path = None
         self.plate_images = None
         self.dilution_images = None
         self.max_intensity_channel = {1: max_dapi, 2: max_alexa488}
@@ -254,6 +256,8 @@ class ImageStitcher:
         return img
 
     def stitch_and_save_plates(self):
+        if self.output_dir_path is None:
+            self.create_output_dir()
         # stitch and save plates images
         for channel_num in CHANNELS:
             img_stack_plate = np.stack(self.img_store["plate"][channel_num])
@@ -271,6 +275,8 @@ class ImageStitcher:
 
     def stitch_and_save_samples(self):
         # stitch and save sample images
+        if self.output_dir_path is None:
+            self.create_output_dir()
         for well in WELL_DICT.keys():
             sample_well = self.img_store["sample"][well]
             sample_imgs = []
@@ -312,7 +318,6 @@ class ImageStitcher:
             raise RuntimeError("no plate images, have you run stitch_plate()?")
         for channel_num, plate_arr in self.plate_images.items():
             plate_path = os.path.join(self.output_dir_path, f"plate_{channel_num}.png")
-            plate_arr = np.clip(plate_arr, -1, 1)
             plate_arr = skimage.img_as_ubyte(plate_arr)
             skimage.io.imsave(fname=plate_path, arr=plate_arr)
 
@@ -325,11 +330,11 @@ class ImageStitcher:
             raise RuntimeError("no plate images, have you run stitch_plate()?")
         for channel_num, plate_arr in self.plate_images.items():
             plate_path = os.path.join(self.output_dir_path, f"plate_{channel_num}.png")
-            plate_arr = skimage.img_as_ubyte(np.clip(plate_arr, -1, 1))
+            plate_arr = skimage.img_as_ubyte(plate_arr)
             skimage.io.imsave(fname=plate_path, arr=plate_arr)
         for well_name, well_arr in self.dilution_images.items():
             well_path = os.path.join(self.output_dir_path, f"well_{well_name}.png")
-            well_arr = skimage.img_as_ubyte(np.clip(well_arr, -1, 1))
+            well_arr = skimage.img_as_ubyte(well_arr)
             skimage.io.imsave(fname=well_path, arr=well_arr)
 
     def create_output_dir(self):

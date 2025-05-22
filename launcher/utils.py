@@ -49,7 +49,7 @@ def is_titration_plate(plate_name: str) -> bool:
     determines if a plate is a titration plate.
     titrations plates starts with T{variant_ints}{workflow_id}
     """
-    return plate_name.startswith("T") and plate_name[1:].isdigit()
+    return plate_name.startswith("T")
 
 
 def is_384_well_plate(dir_name: str, workflow_id: str) -> bool:
@@ -82,9 +82,9 @@ def get_plate_name(dir_name: str) -> str:
     get the name of the plate from the full directory path
     e.g
         get_plate_name(
-            "/some/path/S01000999__2021-01-01T00_00_00-Measurement 1"
+            "/some/path/SABG1001801__2021-01-01T00_00_00-Measurement 1"
         )
-        output: "S01000999"
+        output: "SABG1001801"
     """
     plate_dir = os.path.basename(dir_name)
     return plate_dir.split("__")[0]
