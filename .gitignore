@@ -6,3 +6,5 @@ __pycache__
 *.rdb
 
 .DS_Store
+
+output/

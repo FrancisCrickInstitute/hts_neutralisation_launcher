@@ -3,8 +3,8 @@ import os
 from string import ascii_uppercase
 from typing import Optional, Tuple
 
-import slack
-from well_dict import well_dict_r
+from launcher.slack import send_warning
+from launcher.well_dict import well_dict_r
 
 log = logging.getLogger(__name__)
 
@@ -67,10 +67,13 @@ def get_experiment_name(dir_name: str) -> Optional[str]:
     elif plate_dir.startswith("S"):
         # 384-well plates should be the same for now
         experiment_name = plate_dir.split("__")[0][-6:]
+    # 1536-well Nasal lining fluid
+    elif plate_dir.startswith("N"):
+        experiment_name = plate_dir.split("__")[0][-7:-1]
     else:
         log.error(f"invalid plate directory name {plate_dir}, skipping")
         # send warning message to slack
-        slack.send_warning(
+        send_warning(
             f"Detected invalid directory name in NA_raw_data: {plate_dir}"
         )
         experiment_name = None
@@ -89,6 +92,18 @@ def get_plate_name(dir_name: str) -> str:
     plate_dir = os.path.basename(dir_name)
     return plate_dir.split("__")[0]
 
+
+# def get_plate_num_from_plate_dir(dir_name: str) -> str:
+#     """
+#     get the plate number from the dir_name
+#     e.g
+#         get_plate_num_from_plate_dir(
+#             "/some/path/SABG1001801__2021-01-01T00_00_00-Measurement 1"
+#         )
+#         output: "SABG1001801"
+#     """
+#     plate_dir = os.path.basename(dir_name)
+#     return plate_dir.split("__")[0][:-6]
 
 def get_workflow_id(src_path: str) -> str:
     """returns workflow id as zero-padded string"""
