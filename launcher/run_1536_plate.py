@@ -4,11 +4,13 @@ from config import parse_config
 from handlers import HTTPHandler
 from plate_split import split_1536_plate
 
-cfg_titration = parse_config()["plate_1536"]
-RESULTS_DIR = cfg_titration["results_dir"]
-SNAPSHOT_DB_PATH = cfg_titration["snapshot_db"]
-LOGNAME = cfg_titration["log_path"]
+cfg_plate_1536 = parse_config()["plate_1536"]
+RESULTS_DIR = cfg_plate_1536["results_dir"]
+SNAPSHOT_DB_PATH = cfg_plate_1536["snapshot_db"]
+LOGNAME = cfg_plate_1536["log_path"]
 
+cfg_analyis = parse_config()["analysis"]
+OUTPUT_DIR = cfg_analyis["results_dir"]
 
 if __name__ == "__main__":
     # Get config 
@@ -31,4 +33,4 @@ if __name__ == "__main__":
     log.info(f"Found {len(new_plates)} new plates to process.")
     for plate in new_plates:
         log.info(f"Processing plate {plate}.")
-        split_1536_plate(plate)
+        split_1536_plate(dir_path=plate, output_dir=OUTPUT_DIR)
