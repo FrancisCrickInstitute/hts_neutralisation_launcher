@@ -21,7 +21,7 @@ def split_1536_plate(dir_path: str, output_dir: str) -> None:
     # Gather information from the directory name
     dir_name = os.path.basename(dir_path)
     plate_name = dir_name.split("__")[0]
-    measurement_name = dir_name.split("__")[1]
+    measurement_name = ''.join(dir_name.split("__")[1:])
     exp_type = plate_name[0]
     virus_id = plate_name[1:4]
     rep_num = plate_name[4]
@@ -42,6 +42,8 @@ def split_1536_plate(dir_path: str, output_dir: str) -> None:
     plate_mapping = load_plate_mapping()
 
     # Load the 1536 plate results
+    path = os.path.join(dir_path, "Evaluation*", "PlateResults.txt")
+    log.info(f"Loading plate results from {path}")
     all_evaluations = glob(os.path.join(dir_path, "Evaluation*", "PlateResults.txt"))
     if len(all_evaluations) > 1:
         logging.warning("multiple Evaluation directories found, using the latest")
@@ -73,19 +75,24 @@ def split_1536_plate(dir_path: str, output_dir: str) -> None:
         plate_result_path,
         skiprows=8,
         sep="\t",
-        dtype={
-            "Row": "int32",
-            "Column": "int32",
-            "Plane": "int32",
-            "Timepoint": "int32",
-            "Nuclei Selected - Number of Objects": "int32",
-            "Infected cell - Number of Objects": "int32",
-            "Percentage infected": "float64",
-            "Number of Analyzed Fields": "int32",
-            "Height [µm]": "float64",
-            "Time [s]": "int32",
-        }
+        skip_blank_lines=True,
+        na_values=["", "NA"],
     )
+    source_df = source_df.fillna(0)
+
+    # Cast to strict dtypes
+    source_df = source_df.astype({
+        "Row": "int32",
+        "Column": "int32",
+        "Plane": "int32",
+        "Timepoint": "int32",
+        "Nuclei Selected - Number of Objects": "int32",
+        "Infected cell - Number of Objects": "int32",
+        "Percentage infected": "float64",
+        "Number of Analyzed Fields": "int32",
+        "Height [µm]": "float64",
+        "Time [s]": "int32",
+    })
 
     # Cycle the plates and create output files
     for i in range(number_of_plates):

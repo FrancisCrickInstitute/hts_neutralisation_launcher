@@ -83,3 +83,12 @@ class TestPlateSplit:
             assert_that(len(data_rows)).is_equal_to(384)
         
         assert_that(exist_count).is_equal_to(len(expected_dirs)), "Not all expected directories exist"
+
+
+    def test_custom(self, tmp_path):
+        # Setup
+        dir_path = "tests/data/run_folders/nasal_1536/NAAH1001934__250704_161325-V__2025-07-04T17_24_52-Measurement 1"
+
+        # Test
+        split_1536_plate(dir_path, tmp_path)
+        raise NotImplementedError("Custom test not implemented yet")
