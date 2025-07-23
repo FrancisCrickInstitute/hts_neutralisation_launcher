@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     # Find new plates and process them
     dispatch = Dispatcher(results_dir=RESULTS_DIR, db_path=SNAPSHOT_DB_PATH)
-    new_plates = dispatch.get_new_directories()
+    new_plates = dispatch.get_new_directories("^[A-Za-z].*")
     log.info(f"Found {len(new_plates)} new plates to process.")
     for plate in new_plates:
         log.info(f"Processing plate {plate}.")

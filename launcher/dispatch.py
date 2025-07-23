@@ -45,7 +45,7 @@ class Dispatcher:
         # self.regex_filter = "[A-Z][0-9]{8}__.*-Measurement [0-9]"
         self.regex_filter = r"^(?:[A-Z][0-9]{8}_.*|[A-Z]{4}[0-9]{7}__.*)-Measurement [0-9]$"
 
-    def get_new_directories(self) -> List[str]:
+    def get_new_directories(self, custom_regex=None) -> List[str]:
         """
         Uses snapshotting to get new directories (if present).
         This returns a list of all the new directories which match the given
@@ -54,7 +54,10 @@ class Dispatcher:
         If no new valid directories are found, the entire process exits with
         an exit code 0.
         """
-        snapshot = Snapshot(self.results_dir, self.db_path, regex=self.regex_filter)
+        regex_filter = self.regex_filter
+        if custom_regex:
+            regex_filter = custom_regex
+        snapshot = Snapshot(self.results_dir, self.db_path, regex=regex_filter)
         if snapshot.current_hash == snapshot.stored_hash:
             log.debug(
                 f"hash of {self.results_dir} contents remains unchanged, exiting..."
