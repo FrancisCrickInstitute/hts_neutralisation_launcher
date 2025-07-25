@@ -85,10 +85,17 @@ class TestPlateSplit:
         assert_that(exist_count).is_equal_to(len(expected_dirs)), "Not all expected directories exist"
 
 
-    def test_custom(self, tmp_path):
+    def test_split_1536_plate_windex(self, tmp_path):
         # Setup
-        dir_path = "tests/data/run_folders/nasal_1536/NAAH1001934__250704_161325-V__2025-07-04T17_24_52-Measurement 1"
+        dir_path = "tests/data/run_folders/nasal_1536/NAAH10019294__250704_161325-V__2025-07-04T17_24_52-Measurement 1"
 
         # Test
         split_1536_plate(dir_path, tmp_path)
-        raise NotImplementedError("Custom test not implemented yet")
+
+        # Check index file is created
+        index_file_path = tmp_path / "NAAH1001932__250704_161325-V2025-07-04T17_24_52-Measurement 1" / "indexfile.txt"
+        assert index_file_path.exists(), f"{index_file_path} does not exist"
+
+        # Check file content basics
+        lines = index_file_path.read_text().splitlines()
+        assert_that(lines).is_not_empty()

@@ -12,6 +12,7 @@ log = logging.getLogger(__name__)
 
 PLATE_384_HEADER = "Row	Column	Plane	Timepoint	Viral Plaques (global) - Area of Viral Plaques Area [µm²] - Mean per Well	Viral Plaques (global) - Intensity Viral Plaques Alexa 488 (global) Mean - Mean per Well	Viral Plaques (global) - Intensity Viral Plaques Alexa 488 (global) StdDev - Mean per Well	Viral Plaques (global) - Intensity Viral Plaques Alexa 488 (global) Median - Mean per Well	Viral Plaques (global) - Intensity Viral Plaques Alexa 488 (global) Sum - Mean per Well	Cells - Intensity Image Region DAPI (global) Mean - Mean per Well	Cells - Intensity Image Region DAPI (global) StdDev - Mean per Well	Cells - Intensity Image Region DAPI (global) Median - Mean per Well	Cells - Intensity Image Region DAPI (global) Sum - Mean per Well	Cells - Image Region Area [µm²] - Mean per Well	Normalised Plaque area	Normalised Plaque intensity	Number of Analyzed Fields	Global Image Binning	Height [µm]	Time [s]	Compound	Concentration	Cell Type	Cell Count"
 PLATE_384_HEADER_LEN = len(PLATE_384_HEADER.split("\t"))
+INDEX_FILE_HEADER = "Row	Column	Plane	Timepoint	Sequence	Group	Field	Channel ID	Channel Name	Channel Type	URL	ImageResolutionX [m]	ImageResolutionY [m]	ImageSizeX	ImageSizeY	PositionX [m]	PositionY [m]	Time Stamp	"
 
 def split_1536_plate(dir_path: str, output_dir: str) -> None:
     """
@@ -94,6 +95,27 @@ def split_1536_plate(dir_path: str, output_dir: str) -> None:
         "Time [s]": "int32",
     })
 
+    # Check for index file and load
+    index_file_path = os.path.join(dir_path, "indexfile.txt")
+    index_df = None
+    if os.path.exists(index_file_path):
+        log.info(f"Index file found: {index_file_path}")
+
+        # Check if the index file is empty
+        if os.path.getsize(index_file_path) != 0:
+            # Load the index file
+            index_df = pd.read_csv(
+                index_file_path,
+                sep="\t",
+                skip_blank_lines=True,
+                na_values=["", "NA"],
+                dtype=str,
+            )
+            index_df = index_df.fillna(0)
+            index_df = index_df.loc[:, ~index_df.columns.str.contains('^Unnamed')]
+        else:
+            log.warning(f"Index file is empty: {index_file_path}")
+
     # Cycle the plates and create output files
     for i in range(number_of_plates):
         plate_num = i + 1
@@ -162,6 +184,46 @@ def split_1536_plate(dir_path: str, output_dir: str) -> None:
 
                 # Write the row to the file
                 file.write("\t".join([str(x) for x in new_row]) + "\n")
+
+        if index_df is not None:
+            index_output_path = os.path.join(plate_output_path, "indexfile.txt")
+            log.info(f"Writing index file to {index_output_path}")
+            with open(index_output_path, "w") as file:
+                file.write(INDEX_FILE_HEADER + "\n")
+
+                # Write the data
+                for row in index_df.itertuples(index=False):
+                    # Get 384 well mapping
+                    well_id = row[0] + ":" + row[1]
+                    mapping_384 = plate_mapping[well_id]
+
+                    # Check if the mapping is for this plate
+                    if int(mapping_384[2]) != plate_num:
+                        continue
+
+                    # Covert data row to tab separated string
+                    new_row = [
+                        mapping_384[0],  # Row
+                        mapping_384[1],  # Column
+                        row[2],          # Plane
+                        row[3],          # Timepoint
+                        row[4],          # Sequence
+                        row[5],          # Group
+                        row[6],          # Field
+                        row[7],          # Channel ID
+                        row[8],          # Channel Name
+                        row[9],          # Channel Type
+                        row[10],         # URL
+                        row[11],         # ImageResolutionX [m]
+                        row[12],         # ImageResolutionY [m]
+                        row[13],         # ImageSizeX
+                        row[14],         # ImageSizeY
+                        row[15],         # PositionX [m]
+                        row[16],         # PositionY [m]
+                        row[17]          # Time Stamp
+                    ]
+                    file.write("\t".join([str(x) for x in new_row]) + "\t\n")
+
         log.info(f"Plate results written to {plate_result_path}")
 
 def load_plate_mapping() -> dict:
